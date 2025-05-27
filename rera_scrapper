@@ -1,0 +1,59 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+import time
+
+options = Options()
+options.add_argument("--headless")
+driver = webdriver.Chrome(options=options)
+
+driver.get("https://rera.odisha.gov.in/projects/project-list")
+time.sleep(3)
+
+soup = BeautifulSoup(driver.page_source, "html.parser")
+project_links = soup.select('a[href^="/projects/view-project-details"]')[:6]
+
+def get_text(soup, label):
+    try:
+        return soup.find("label", string=label).find_next("p").text.strip()
+    except:
+        return "Not Available"
+
+projects = []
+
+for link in project_links:
+    url = "https://rera.odisha.gov.in" + link["href"]
+    driver.get(url)
+    time.sleep(2)
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    rera_no = get_text(soup, "Rera Registration No.")
+    name = get_text(soup, "Project Name")
+
+    try:
+        driver.find_element(By.LINK_TEXT, "Promoter Details").click()
+        time.sleep(1)
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+    except:
+        pass
+
+    promoter = get_text(soup, "Company Name")
+    address = get_text(soup, "Registered Office Address")
+    gst = get_text(soup, "GST No")
+
+    projects.append({
+        "RERA No": rera_no,
+        "Project Name": name,
+        "Promoter Name": promoter,
+        "Address": address,
+        "GST No": gst,
+        "Detail Page": url
+    })
+
+driver.quit()
+
+for i, p in enumerate(projects, 1):
+    print(f"\nProject {i}")
+    for key, val in p.items():
+        print(f"{key}: {val}")
